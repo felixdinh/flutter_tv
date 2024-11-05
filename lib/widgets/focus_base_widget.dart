@@ -1,23 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:test_tv/utils/common_func.dart';
 
 class FocusBaseWidget extends StatefulWidget {
-  final FocusNode? focus;
-  final Function() onPressed;
+  final Function()? onPressed;
   final Function(FocusNode)? onFocus;
   final Widget Function(bool isFocus)? builder;
-  final Function(KeyEvent)? onKeyEvent;
   final bool autoFocus;
+  final FocusNode? focusNode;
   final EdgeInsets? padding;
+  final bool scaleOnFocus;
+  final bool enable;
+  final String? label;
 
   const FocusBaseWidget({
     super.key,
-    this.focus,
-    required this.onPressed,
+    this.onPressed,
     this.builder,
     this.onFocus,
-    this.onKeyEvent,
+    this.focusNode,
     this.autoFocus = false,
     this.padding,
+    this.scaleOnFocus = false,
+    this.enable = true,
+    this.label,
   });
 
   @override
@@ -25,43 +30,53 @@ class FocusBaseWidget extends StatefulWidget {
 }
 
 class _FocusBaseWidgetState extends State<FocusBaseWidget> {
-  late final FocusNode focusNode;
+  late FocusNode focusNode;
   @override
   void initState() {
-    super.initState();
-    focusNode = widget.focus ?? FocusNode();
+    focusNode = widget.focusNode ?? FocusNode(debugLabel: widget.label == null? null : 'focus_node_${widget.label}');
     focusNode.addListener(_focusListener);
+    super.initState();
   }
 
-  @override
-  void dispose() {
-    focusNode.removeListener(_focusListener);
-    focusNode.dispose();
-    super.dispose();
-  }
-
-
-  _focusListener(){
+  _focusListener() {
+    if (!mounted) return;
     setState(() {
       widget.onFocus?.call(focusNode);
     });
   }
 
+  double get scaleValue {
+    if (widget.scaleOnFocus) {
+      return focusNode.hasFocus ? 1 : .93;
+    }
+    return 1.0;
+  }
+
+  @override
+  void dispose() {
+    if(!mounted) return;
+    focusNode.removeListener(_focusListener);
+    focusNode.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Transform.scale(
-      scale: focusNode.hasFocus ? 1.0 : 0.8,
-      child: Focus(
-        focusNode: focusNode,
-        autofocus: widget.autoFocus,
-        //onKeyEvent: widget.onKeyEvent,
-        child: GestureDetector(
-          onTap: (){
-            focusNode.requestFocus();
-          },
-          child: widget.builder?.call(focusNode.hasFocus) ?? placeHolder(),
-        ),
-      ),
+        scale: scaleValue,
+        child: Focus(
+          focusNode: focusNode,
+          autofocus: widget.autoFocus,
+          onKeyEvent: (focus,event) {
+            return onTvSelect(event,context, (context) => widget.onPressed?.call());
+          } ,
+          child: RawMaterialButton(
+              onPressed: (){
+                widget.onPressed?.call();
+                FocusScope.of(context).requestFocus(focusNode);
+              },
+              child: widget.builder?.call(focusNode.hasFocus) ?? placeHolder()),
+        )
     );
   }
 
@@ -71,10 +86,10 @@ class _FocusBaseWidgetState extends State<FocusBaseWidget> {
     decoration: BoxDecoration(
       color: Colors.black12,
       borderRadius: BorderRadius.circular(8),
-      border: Border.all(width: focusNode.hasFocus ?  1 : 0,color: Colors.white),
+      border: Border.all(width: focusNode.hasFocus ? 1 : 0, color: Colors.white),
     ),
     child: const Center(
-      child: Text("Place holder Card",style: TextStyle(color: Colors.white)),
+      child: Text("Place holder Card", style: TextStyle(color: Colors.white)),
     ),
   );
 }

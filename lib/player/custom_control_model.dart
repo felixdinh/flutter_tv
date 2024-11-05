@@ -1,0 +1,3 @@
+enum TvSeekType {
+  next,previous
+}
